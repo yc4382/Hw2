@@ -1,0 +1,92 @@
+---
+title: "Hw2"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+## Prob2
+First, we read the data for Mr.Trash Wheel. The other 2 datasets can be done based on similar procedures. We need to add a variable called "type" to indicate which trash wheel this observation refers to.
+```{r}
+data2_mr = read_excel("C:\\grad\\202309 Trash Wheel Collection Data.xlsx",sheet=1,skip = 1,n_max = 584)
+data2_mr = data2_mr[,-c(15,16)]
+data2_mr$type = "mr"
+```
+
+Also we need to calculate the variable homes_powered. Then drop the variable HomesPowered*
+```{r}
+data2_mr$homes_powered = data2_mr$`Weight (tons)`*500/30
+data2_mr = data2_mr[,-14]
+```
+
+The other 2 datasets follow the same method.
+```{r}
+data2_prof = read_excel("C:\\grad\\202309 Trash Wheel Collection Data.xlsx",sheet=2,skip = 1,n_max = 106)
+data2_prof$type = "prof"
+data2_prof$homes_powered = data2_prof$`Weight (tons)`*500/30
+data2_prof = data2_prof[,-13]
+data2_prof$`Sports Balls` = 0
+data2_gwynnda = read_excel("C:\\grad\\202309 Trash Wheel Collection Data.xlsx",sheet=4,skip = 1,n_max = 155)
+data2_gwynnda$type = "gwyn"
+data2_gwynnda$homes_powered = data2_gwynnda$`Weight (tons)`*500/30
+data2_gwynnda = data2_gwynnda[,-12]
+data2_gwynnda$`Sports Balls`=0
+data2_gwynnda$`Glass Bottles`=0
+dt2 = merge(data2_mr,data2_prof,by = names(data2_mr),all = T)
+dt2 = merge(dt2,data2_gwynnda,by = names(dt2),all = T)
+```
+
+dt2 is the merged data that records all the information for Mr.Trash Wheel, Professor Trash Wheel and Gwynnda Trash Wheel. In total 845 dumpsters are recorded. We keep track of values of `r names(data2_mr)`. Homes_powered is weight*50/3 by the formula given. An example of the dataset is shown below 
+```{r}
+head(dt2)
+```
+The total weight of trash collected by Professor Trash Wheel is `r sum(data2_prof[,5])` tons. Total number of cigatette butts collected by Gwynnda in July of 2021 is `r sum(data2_gwynnda[data2_gwynnda[,2]=="July"&data2_gwynnda[,3]=="2021",9])`
+
+## Prob3
+First we import, clean and tidy the dataset of baseline demographics.
+We notice that the first line of the data set is the description of each variable, so we need to omit it when importing data into R.
+
+```{r}
+data3_base = read.csv("C:\\Grad\\data_mci\\data_mci\\MCI_baseline.csv",skip = 1)
+```
+
+Next, when importing, Sex and APOE4 are numericalvariables. We can use as.factor() to coerce them into categorical variables.
+```{r}
+data3_base$Sex = as.factor(data3_base$Sex)
+data3_base$apoe4= as.factor(data3_base$apoe4)
+```
+
+Next, we need to remove those participants who don't meet the inclusion criteria. These participants have a characteristic that the onset age is equal to or smaller than the baseline age. We can find which observations that don't have this characteristic and keep them.
+```{r}
+a = which(data3_base$Age.at.onset>data3_base$Current.Age | data3_base$Age.at.onset=='.')
+data3_base_clean = data3_base[a,]
+```
+
+In total, there are `r dim(data3_base_clean)[1]` observations recruited, and `r sum(data3_base_clean$Age.at.onset!='.')` observations developed MCI. Among all participants who meet the inclusion criteria, the mean baseline age is `r mean(data3_base_clean$Current.Age)`, proportion of women in the study are APOE4 carriers is `r mean(data3_base_clean$Sex=='0')` 
+
+Next we import the data set for biomarker values. Similarly, the first line needs to be omitted. In addition, some cells are marked as "Na" instead of "NA", we should make them NA
+```{r}
+data3_biomarker = read.csv("C:\\Grad\\data_mci\\data_mci\\mci_amyloid.csv",skip = 1)
+a =data3_biomarker=="Na"
+data3_biomarker[a] = NA
+```
+
+By eye check, there are participants appear in only the baseline or amyloid datasets. We can use R to find which participants are in both datasets.
+
+```{r}
+IDs = c(data3_base_clean$ID,data3_biomarker$Study.ID)
+z = duplicated(IDs)
+in_both = IDs[z]
+```
+The length of in_both is 471, so there are 471 participants that are in both datasets. Next we can merge these two data sets.
+```{r}
+names(data3_biomarker)[1]="ID"
+dt = merge(data3_base_clean,data3_biomarker,by="ID")
+write.csv(dt,file="merged.csv")
+```
+
+We merge the datasets by ID. Only one variable is kept for ID and the longitudinal data is attached behind the baseline. 
